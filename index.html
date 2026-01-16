@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>外發廠商登記單 (AI 全自動版)</title>
+    <title>外發廠商登記單 (最終完美版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Microsoft JhengHei', sans-serif; background-color: #f3f4f6; }
         .loader { border: 4px solid #f3f3f3; border-radius: 50%; border-top: 4px solid #3498db; width: 24px; height: 24px; animation: spin 1s linear infinite; display: none;}
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        input:focus { background-color: #f0f9ff; border-color: #3b82f6; outline: none; }
+        input:focus, select:focus { background-color: #f0f9ff; border-color: #3b82f6; outline: none; }
         
         /* 設定視窗樣式 */
         #settingsModal {
@@ -40,9 +40,10 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 border-b pb-4">
             <div>
                 <label class="block text-sm font-bold">廠商選擇</label>
-                <select id="vendor" class="w-full border p-2 rounded">
-                    <option value="家裡蹲">家裡蹲</option>
+                <select id="vendor" class="w-full border p-2 rounded text-gray-700">
+                    <option value="" disabled selected>請選擇廠商...</option>
                     <option value="健豪">健豪</option>
+                    <option value="家裡蹲">家裡蹲</option>
                     <option value="其他">其他</option>
                 </select>
             </div>
@@ -268,7 +269,7 @@
             const MODEL_NAME = "gemini-flash-latest"; 
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${GEMINI_API_KEY}`;
             
-            // 升級版 Prompt：要求回傳完整的 JSON 物件
+            // 升級版 Prompt
             const prompt = `
                 Analyze this image of business cards or a name list.
                 Identify the Company/Client Name.
@@ -351,6 +352,14 @@
         }
 
         function submitOrder() {
+            // 檢查是否已選擇廠商
+            const vendor = document.getElementById('vendor').value;
+            if (!vendor) {
+                alert("請選擇「廠商」！");
+                document.getElementById('vendor').focus();
+                return;
+            }
+
             const loader = document.getElementById('submitLoader');
             loader.style.display = 'block';
 
@@ -369,7 +378,7 @@
             });
 
             const data = {
-                vendor: document.getElementById('vendor').value,
+                vendor: vendor,
                 date: document.getElementById('date').value,
                 deliveryTime: document.getElementById('deliveryTime').value,
                 sales: document.getElementById('sales').value,
