@@ -3,18 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>外發廠商登記單 (綠色復刻版)</title>
+    <title>外發廠商登記單 (自訂選單版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Microsoft JhengHei', sans-serif; background-color: #f3f4f6; }
         .loader { border: 4px solid #f3f3f3; border-radius: 50%; border-top: 4px solid #3498db; width: 24px; height: 24px; animation: spin 1s linear infinite; display: none;}
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        input:focus { background-color: #f0f9ff; border-color: #3b82f6; outline: none; }
+        
+        /* 設定視窗樣式 */
+        #settingsModal {
+            background-color: rgba(0, 0, 0, 0.5);
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; justify-content: center; align-items: center; z-index: 50;
+        }
+        .modal-content {
+            background: white; padding: 2rem; border-radius: 0.5rem; width: 90%; max-width: 500px;
+            max-height: 90vh; overflow-y: auto;
+        }
     </style>
 </head>
-<body class="p-4">
+<body class="p-4 relative">
 
-    <div class="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow-lg">
-        <h2 class="text-2xl font-bold mb-4 text-center text-gray-800">外發廠商登記單 (OCR)</h2>
+    <button onclick="openSettings()" class="absolute top-4 right-4 bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700 text-sm flex items-center gap-1">
+        ⚙️ 設定常用詞彙
+    </button>
+
+    <datalist id="salesList"></datalist>
+    <datalist id="paperList"></datalist>
+    <datalist id="sizeList"></datalist>
+    <datalist id="processList"></datalist>
+
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-lg mt-8">
+        <h2 class="text-2xl font-bold mb-4 text-center text-gray-800">外發廠商登記單</h2>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 border-b pb-4">
             <div>
@@ -35,7 +56,7 @@
             </div>
             <div>
                 <label class="block text-sm font-bold">負責業務</label>
-                <input type="text" id="sales" class="w-full border p-2 rounded">
+                <input type="text" id="sales" value="詹子建" list="salesList" class="w-full border p-2 rounded" placeholder="請選擇或輸入">
             </div>
             <div>
                 <label class="block text-sm font-bold">客戶名稱</label>
@@ -58,13 +79,13 @@
 
         <h3 class="font-bold mb-2">印件明細</h3>
         <div class="overflow-x-auto">
-            <table class="w-full border-collapse border border-gray-300 min-w-[600px]" id="itemTable">
+            <table class="w-full border-collapse border border-gray-300 min-w-[700px]" id="itemTable">
                 <thead>
-                    <tr class="bg-green-200">
+                    <tr class="bg-green-200 text-gray-700">
                         <th class="border p-2 w-24">頭銜</th>
                         <th class="border p-2 w-32">人名</th>
                         <th class="border p-2 w-16">盒數</th>
-                        <th class="border p-2">紙張</th>
+                        <th class="border p-2 w-32">紙張</th>
                         <th class="border p-2 w-20">單/雙</th>
                         <th class="border p-2 w-24">尺寸</th>
                         <th class="border p-2">加工</th>
@@ -75,47 +96,170 @@
                     </tbody>
             </table>
         </div>
-        <button onclick="addRow()" class="mt-2 text-blue-600 text-sm hover:underline">+ 新增一列</button>
+        <button onclick="addRow()" class="mt-2 text-blue-600 text-sm hover:underline font-bold">+ 新增一列</button>
 
         <div class="mt-8 pt-4 border-t text-center">
-            <button onclick="submitOrder()" class="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold text-lg hover:bg-blue-700 w-full md:w-auto flex justify-center items-center gap-2 mx-auto">
+            <button onclick="submitOrder()" class="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold text-lg hover:bg-blue-700 w-full md:w-auto flex justify-center items-center gap-2 mx-auto shadow-md">
                 <div id="submitLoader" class="loader"></div>
                 送出至 Google Sheet
             </button>
         </div>
     </div>
 
+    <div id="settingsModal">
+        <div class="modal-content">
+            <h3 class="text-xl font-bold mb-4">⚙️ 設定常用詞彙</h3>
+            <p class="text-sm text-gray-500 mb-4">請用「逗號」分隔每個選項</p>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block font-bold text-sm">負責業務清單</label>
+                    <textarea id="editSales" class="w-full border p-2 rounded h-20 text-sm"></textarea>
+                </div>
+                <div>
+                    <label class="block font-bold text-sm">紙張種類清單</label>
+                    <textarea id="editPaper" class="w-full border p-2 rounded h-20 text-sm"></textarea>
+                </div>
+                <div>
+                    <label class="block font-bold text-sm">尺寸清單</label>
+                    <textarea id="editSize" class="w-full border p-2 rounded h-20 text-sm"></textarea>
+                </div>
+                <div>
+                    <label class="block font-bold text-sm">加工方式清單</label>
+                    <textarea id="editProcess" class="w-full border p-2 rounded h-20 text-sm"></textarea>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end gap-2">
+                <button onclick="closeSettings()" class="px-4 py-2 border rounded hover:bg-gray-100">取消</button>
+                <button onclick="saveSettings()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">儲存設定</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // ================= 設定區 =================
+        // ================= 設定區 (已自動帶入) =================
         const GEMINI_API_KEY = 'AIzaSyD3L16kYLMQW2pMJhj_dxZRMZmxnDisQYw'; 
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbyrG2SM82toUvrxkbkEF37H_hqK-50UK8tups5wRmbsmeplS5O7c98GR7R5dObzPLrjbg/exec'; 
-        // =========================================
+        // ====================================================
 
-        document.getElementById('date').valueAsDate = new Date();
-        addRow();
+        // 預設的選項清單 (如果使用者還沒自訂過，就用這些)
+        const DEFAULT_OPTIONS = {
+            sales: ["詹子建"],
+            paper: ["一級卡", "萊妮紙", "象牙卡", "雙霧卡", "局部光", "瑞典一級卡", "頂級卡", "合成卡", "安格紙"],
+            size: ["90x54", "90x50", "210x297"],
+            process: ["雙面霧P", "局部上光"]
+        };
 
+        // 目前的選項狀態
+        let currentOptions = {};
+
+        // 初始化
+        window.onload = function() {
+            document.getElementById('date').valueAsDate = new Date();
+            loadSettings(); // 載入選單設定
+            addRow();       // 新增第一列
+        };
+
+        // --- 設定功能：載入與儲存 ---
+        function loadSettings() {
+            const saved = localStorage.getItem('vendorFormOptions');
+            if (saved) {
+                currentOptions = JSON.parse(saved);
+            } else {
+                currentOptions = JSON.parse(JSON.stringify(DEFAULT_OPTIONS));
+            }
+            renderDatalists();
+        }
+
+        function renderDatalists() {
+            // 填充 datalist HTML
+            fillDatalist('salesList', currentOptions.sales);
+            fillDatalist('paperList', currentOptions.paper);
+            fillDatalist('sizeList', currentOptions.size);
+            fillDatalist('processList', currentOptions.process);
+        }
+
+        function fillDatalist(id, array) {
+            const datalist = document.getElementById(id);
+            datalist.innerHTML = '';
+            array.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item;
+                datalist.appendChild(option);
+            });
+        }
+
+        // 開啟設定視窗
+        function openSettings() {
+            document.getElementById('editSales').value = currentOptions.sales.join(',');
+            document.getElementById('editPaper').value = currentOptions.paper.join(',');
+            document.getElementById('editSize').value = currentOptions.size.join(',');
+            document.getElementById('editProcess').value = currentOptions.process.join(',');
+            document.getElementById('settingsModal').style.display = 'flex';
+        }
+
+        // 關閉設定視窗
+        function closeSettings() {
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+
+        // 儲存使用者自訂設定
+        function saveSettings() {
+            currentOptions.sales = document.getElementById('editSales').value.split(',').map(s=>s.trim()).filter(s=>s);
+            currentOptions.paper = document.getElementById('editPaper').value.split(',').map(s=>s.trim()).filter(s=>s);
+            currentOptions.size = document.getElementById('editSize').value.split(',').map(s=>s.trim()).filter(s=>s);
+            currentOptions.process = document.getElementById('editProcess').value.split(',').map(s=>s.trim()).filter(s=>s);
+
+            localStorage.setItem('vendorFormOptions', JSON.stringify(currentOptions));
+            renderDatalists();
+            closeSettings();
+            alert('設定已儲存！');
+        }
+
+
+        // --- 表格功能 ---
         function addRow(data = {}) {
             const tbody = document.getElementById('tableBody');
             const row = document.createElement('tr');
-            // 隔行變色邏輯由 CSS/JS 動態處理較複雜，這裡前端先用白色，後端GAS會畫出顏色
+            
+            // 這裡設定預設值
+            // 紙張預設：一級卡
+            const defaultPaper = "一級卡";
+            // 尺寸、加工預設：空白
+            const defaultSize = "";
+            const defaultProcess = "";
+
             row.innerHTML = `
-                <td class="border p-1"><input type="text" value="${data.title || ''}" class="w-full p-1 border-0 focus:ring-2" placeholder="頭銜"></td>
-                <td class="border p-1"><input type="text" value="${data.name || ''}" class="w-full p-1 border-0 focus:ring-2" placeholder="人名"></td>
-                <td class="border p-1"><input type="number" value="${data.boxes || '1'}" class="w-full p-1 border-0 focus:ring-2 text-center"></td>
-                <td class="border p-1"><input type="text" value="一級卡" class="w-full p-1 border-0 focus:ring-2"></td>
+                <td class="border p-1"><input type="text" value="${data.title || ''}" class="w-full p-1 border-0 focus:ring-2 bg-transparent" placeholder="頭銜"></td>
+                <td class="border p-1"><input type="text" value="${data.name || ''}" class="w-full p-1 border-0 focus:ring-2 bg-transparent" placeholder="人名"></td>
+                <td class="border p-1"><input type="number" value="${data.boxes || '1'}" class="w-full p-1 border-0 focus:ring-2 text-center bg-transparent"></td>
+                
                 <td class="border p-1">
-                    <select class="w-full p-1 border-0">
-                        <option>雙面</option>
-                        <option>單面</option>
+                    <input type="text" value="${data.paper || defaultPaper}" list="paperList" class="w-full p-1 border-0 focus:ring-2 bg-transparent" placeholder="選或填">
+                </td>
+                
+                <td class="border p-1">
+                    <select class="w-full p-1 border-0 bg-transparent">
+                        <option ${data.side === '雙面' ? 'selected' : ''}>雙面</option>
+                        <option ${data.side === '單面' ? 'selected' : ''}>單面</option>
                     </select>
                 </td>
-                <td class="border p-1"><input type="text" value="90x54" class="w-full p-1 border-0 focus:ring-2 text-center"></td>
-                <td class="border p-1"><input type="text" class="w-full p-1 border-0 focus:ring-2"></td>
-                <td class="border p-1 text-center"><button onclick="this.closest('tr').remove()" class="text-red-500 font-bold">x</button></td>
+                
+                <td class="border p-1">
+                    <input type="text" value="${data.size || defaultSize}" list="sizeList" class="w-full p-1 border-0 focus:ring-2 text-center bg-transparent" placeholder="選或填">
+                </td>
+                
+                <td class="border p-1">
+                    <input type="text" value="${data.process || defaultProcess}" list="processList" class="w-full p-1 border-0 focus:ring-2 bg-transparent" placeholder="選或填">
+                </td>
+                
+                <td class="border p-1 text-center"><button onclick="this.closest('tr').remove()" class="text-red-500 font-bold hover:text-red-700">x</button></td>
             `;
             tbody.appendChild(row);
         }
 
+        // --- Gemini AI OCR ---
         async function processImage() {
             const fileInput = document.getElementById('fileInput');
             if (fileInput.files.length === 0) return alert("請先拍攝或選擇照片");
@@ -154,7 +298,6 @@
         }
 
         async function callGemini(base64Image) {
-            // 【關鍵設定】使用者要求的特定模型名稱
             const MODEL_NAME = "gemini-flash-latest"; 
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${GEMINI_API_KEY}`;
             
@@ -184,10 +327,9 @@
                 
                 const data = await response.json();
 
-                // 【除錯關鍵】檢查是否報錯
                 if (data.error) {
                     console.error("Gemini API Error:", data.error);
-                    alert(`OCR 辨識失敗！\n錯誤代碼: ${data.error.code}\n訊息: ${data.error.message}\n(請確認 API Key 是否正確，或模型名稱是否有效)`);
+                    alert(`OCR 辨識失敗！\n錯誤代碼: ${data.error.code}\n訊息: ${data.error.message}\n(請確認 API Key 是否正確)`);
                     document.getElementById('ocrLoader').style.display = 'none';
                     return;
                 }
@@ -197,13 +339,18 @@
                 }
                 
                 let text = data.candidates[0].content.parts[0].text;
-                // 強力清除 Markdown
                 text = text.replace(/```json/g, '').replace(/```/g, '').trim();
                 
                 const items = JSON.parse(text);
                 
+                // OCR 成功後，清空表格並填入新資料
                 document.getElementById('tableBody').innerHTML = '';
-                items.forEach(item => addRow({ title: item.title, name: item.name }));
+                items.forEach(item => addRow({ 
+                    title: item.title, 
+                    name: item.name,
+                    paper: '一級卡', // 保持預設值
+                    size: '' // OCR 不知道尺寸，留白讓使用者選
+                }));
 
             } catch (error) {
                 console.error(error);
@@ -213,6 +360,7 @@
             }
         }
 
+        // --- 送出資料至 GAS ---
         function submitOrder() {
             const loader = document.getElementById('submitLoader');
             loader.style.display = 'block';
@@ -244,10 +392,10 @@
             fetch(GAS_URL, {
                 method: 'POST',
                 mode: 'no-cors',
-                headers: { 'Content-Type': 'text/plain' }, // 保持 text/plain
+                headers: { 'Content-Type': 'text/plain' },
                 body: JSON.stringify(data)
             }).then(() => {
-                alert('✅ 資料已送出，並依據截圖排版！');
+                alert('✅ 資料已送出！');
                 loader.style.display = 'none';
             }).catch(err => {
                 alert('❌ 發送失敗: ' + err);
