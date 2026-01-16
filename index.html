@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>外發廠商登記單 (OCR版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Microsoft JhengHei', sans-serif; background-color: #f3f4f6; }
+        .loader { border: 4px solid #f3f3f3; border-radius: 50%; border-top: 4px solid #3498db; width: 24px; height: 24px; animation: spin 1s linear infinite; display: none;}
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="p-4">
+
+    <div class="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow-lg">
+        <h2 class="text-2xl font-bold mb-4 text-center text-gray-800">外發廠商登記單</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 border-b pb-4">
+            <div>
+                <label class="block text-sm font-bold">廠商選擇</label>
+                <select id="vendor" class="w-full border p-2 rounded">
+                    <option value="家裡蹲">家裡蹲</option>
+                    <option value="健豪">健豪</option>
+                    <option value="其他">其他</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-bold">日期</label>
+                <input type="date" id="date" class="w-full border p-2 rounded">
+            </div>
+            <div>
+                <label class="block text-sm font-bold">交貨時間</label>
+                <input type="text" id="deliveryTime" placeholder="例如：下午5點" class="w-full border p-2 rounded">
+            </div>
+            <div>
+                <label class="block text-sm font-bold">負責業務</label>
+                <input type="text" id="sales" class="w-full border p-2 rounded">
+            </div>
+            <div>
+                <label class="block text-sm font-bold">客戶名稱</label>
+                <input type="text" id="clientName" class="w-full border p-2 rounded">
+            </div>
+            <div>
+                <label class="block text-sm font-bold">印件名稱</label>
+                <input type="text" id="printName" placeholder="將作為分頁名稱" class="w-full border p-2 rounded">
+            </div>
+        </div>
+
+        <div class="mb-6 p-4 bg-blue-50 rounded border border-blue-200">
+            <h3 class="font-bold text-blue-800 mb-2">📸 AI 辨識名片 (自動填寫下方表格)</h3>
+            <input type="file" id="fileInput" accept="image/*" capture="camera" class="block w-full text-sm text-gray-500 mb-2">
+            <button onclick="processImage()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2">
+                <div id="ocrLoader" class="loader"></div>
+                開始辨識
+            </button>
+            
+        </div>
+
+        <h3 class="font-bold mb-2">印件明細</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full border-collapse border border-gray-300 min-w-[600px]" id="itemTable">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="border p-2 w-24">頭銜</th>
+                        <th class="border p-2 w-32">人名</th>
+                        <th class="border p-2 w-16">盒數</th>
+                        <th class="border p-2">紙張</th>
+                        <th class="border p-2 w-20">單/雙</th>
+                        <th class="border p-2 w-24">尺寸</th>
+                        <th class="border p-2">加工</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    </tbody>
+            </table>
+        </div>
+        <button onclick="addRow()" class="mt-2 text-blue-600 text-sm hover:underline">+ 新增一列</button>
+
+        <div class="mt-8 pt-4 border-t text-center">
+            <button onclick="submitOrder()" class="bg-green-600 text-white px-8 py-3 rounded-lg font-bold text-lg hover:bg-green-700 w-full md:w-auto flex justify-center items-center gap-2 mx-auto">
+                <div id="submitLoader" class="loader"></div>
+                送出至 Google Sheet
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ================= 設定區 =================
+        const GEMINI_API_KEY = 'AKfycbyrG2SM82toUvrxkbkEF37H_hqK-50UK8tups5wRmbsmeplS5O7c98GR7R5dObzPLrjbg'; 
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbyrG2SM82toUvrxkbkEF37H_hqK-50UK8tups5wRmbsmeplS5O7c98GR7R5dObzPLrjbg/exec'; 
+        // =========================================
+
+        // 預設日期為今天
+        document.getElementById('date').valueAsDate = new Date();
+
+        // 預設新增一列
+        addRow();
+
+        function addRow(data = {}) {
+            const tbody = document.getElementById('tableBody');
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="border p-1"><input type="text" value="${data.title || ''}" class="w-full p-1 border-0 focus:ring-2" placeholder="頭銜"></td>
+                <td class="border p-1"><input type="text" value="${data.name || ''}" class="w-full p-1 border-0 focus:ring-2" placeholder="人名"></td>
+                <td class="border p-1"><input type="number" value="${data.boxes || '1'}" class="w-full p-1 border-0 focus:ring-2 text-center"></td>
+                <td class="border p-1"><input type="text" value="一級卡" class="w-full p-1 border-0 focus:ring-2"></td>
+                <td class="border p-1">
+                    <select class="w-full p-1 border-0">
+                        <option>雙面</option>
+                        <option>單面</option>
+                    </select>
+                </td>
+                <td class="border p-1"><input type="text" value="90x54" class="w-full p-1 border-0 focus:ring-2 text-center"></td>
+                <td class="border p-1"><input type="text" class="w-full p-1 border-0 focus:ring-2"></td>
+                <td class="border p-1 text-center"><button onclick="this.closest('tr').remove()" class="text-red-500 font-bold">x</button></td>
+            `;
+            tbody.appendChild(row);
+        }
+
+        // 1. 圖片壓縮與 Base64 轉換
+        async function processImage() {
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput.files.length === 0) return alert("請先拍攝或選擇照片");
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            document.getElementById('ocrLoader').style.display = 'block';
+
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    // 縮圖邏輯：限制最大寬度 1024
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 1024;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // 轉為 Base64 (移除 data:image/jpeg;base64, 前綴)
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    const base64Image = dataUrl.split(',')[1];
+                    
+                    callGemini(base64Image);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 2. 呼叫 Gemini API (使用 gemini-flash-latest)
+        async function callGemini(base64Image) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+            
+            const prompt = `
+                Analyze this image of business cards or list. 
+                Extract: 1. Title (Job Title), 2. Name (Person Name).
+                Return ONLY a JSON array without markdown formatting. 
+                Example: [{"title": "Manager", "name": "John Doe"}, {"title": "CEO", "name": "Jane Smith"}]
+            `;
+
+            const payload = {
+                contents: [{
+                    parts: [
+                        { text: prompt },
+                        { inline_data: { mime_type: "image/jpeg", data: base64Image } }
+                    ]
+                }]
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                
+                // 解析 Gemini 回傳的文字
+                let text = data.candidates[0].content.parts[0].text;
+                // 清理可能的 Markdown 標記
+                text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                
+                const items = JSON.parse(text);
+                
+                // 清空現有表格並填入新資料
+                document.getElementById('tableBody').innerHTML = '';
+                items.forEach(item => addRow({ title: item.title, name: item.name }));
+
+            } catch (error) {
+                console.error(error);
+                alert("辨識失敗，請重試或手動輸入。");
+            } finally {
+                document.getElementById('ocrLoader').style.display = 'none';
+            }
+        }
+
+        // 3. 送出資料給 GAS
+        function submitOrder() {
+            const loader = document.getElementById('submitLoader');
+            loader.style.display = 'block';
+
+            // 蒐集表格資料
+            const rows = document.querySelectorAll('#tableBody tr');
+            const items = Array.from(rows).map(row => {
+                const inputs = row.querySelectorAll('input, select');
+                return {
+                    title: inputs[0].value,
+                    name: inputs[1].value,
+                    boxes: inputs[2].value,
+                    paper: inputs[3].value,
+                    side: inputs[4].value,
+                    size: inputs[5].value,
+                    process: inputs[6].value
+                };
+            });
+
+            const data = {
+                vendor: document.getElementById('vendor').value,
+                date: document.getElementById('date').value,
+                deliveryTime: document.getElementById('deliveryTime').value,
+                sales: document.getElementById('sales').value,
+                clientName: document.getElementById('clientName').value,
+                printName: document.getElementById('printName').value || '未命名印件',
+                items: items
+            };
+
+            // 使用 fetch 送出 POST
+            fetch(GAS_URL, {
+                method: 'POST',
+                mode: 'no-cors', // 重要：避免 CORS 錯誤，但無法讀取回傳值
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }).then(() => {
+                alert('✅ 資料已送出！');
+                loader.style.display = 'none';
+                // 可選：重置表單
+                // location.reload();
+            }).catch(err => {
+                alert('❌ 發送失敗: ' + err);
+                loader.style.display = 'none';
+            });
+        }
+    </script>
+</body>
+</html>
