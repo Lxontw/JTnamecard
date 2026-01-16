@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>外發廠商登記單 (累加版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
+	<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
         body { font-family: 'Microsoft JhengHei', sans-serif; background-color: #f3f4f6; }
         .loader { border: 4px solid #f3f3f3; border-radius: 50%; border-top: 4px solid #3498db; width: 24px; height: 24px; animation: spin 1s linear infinite; display: none;}
@@ -105,6 +106,9 @@
                 <div id="submitLoader" class="loader"></div>
                 送出至 Google Sheet
             </button>
+			<button onclick="downloadJPG()" class="bg-gray-500 text-white px-8 py-3 rounded-lg font-bold text-lg hover:bg-gray-600 w-full md:w-auto mt-4 md:mt-0">
+			    📸 下載為 JPG
+			</button>
         </div>
     </div>
 
@@ -148,9 +152,9 @@
 
         const DEFAULT_OPTIONS = {
             sales: ["詹子建"],
-            paper: ["一級卡", "萊妮紙", "象牙卡", "雙霧卡", "局部光", "瑞典一級卡", "頂級卡", "合成卡", "安格紙"],
+            paper: ["一級卡", "萊妮紙", "象牙卡", "雙霧卡", "瑞典一級卡", "頂級卡", "合成卡", "安格紙"],
             size: ["90x54", "90x50", "210x297"],
-            process: ["雙面霧P", "局部上光"]
+            process: ["雙面霧P", "局部上光", "正反絲絨膜+局光","燙金","燙霧銀"]
         };
 
         let currentOptions = {};
@@ -430,6 +434,32 @@
                 alert('❌ 發送失敗: ' + err);
                 loader.style.display = 'none';
             });
+			function downloadJPG() {
+			    // 選擇要截圖的範圍，這裡我們抓整個白色卡片區塊 (.max-w-4xl)
+			    // 或是你可以給最外層的 div 一個 id="captureArea"
+			    const element = document.querySelector(".max-w-4xl"); 
+
+			    // 顯示載入中...
+			    const originalText = event.target.innerText;
+			    event.target.innerText = "生成中...";
+
+			    html2canvas(element, {
+			        scale: 2, // 提高解析度 (2倍清晰)
+			        useCORS: true, // 允許跨域圖片 (雖然這裡都是本地)
+			        backgroundColor: "#ffffff" // 確保背景是白的
+			    }).then(canvas => {
+			        // 建立下載連結
+			        const link = document.createElement('a');
+			        link.download = `外發單_${new Date().toISOString().slice(0,10)}.jpg`;
+			        link.href = canvas.toDataURL("image/jpeg", 0.9); // 0.9 是品質
+			        link.click();
+
+			        // 恢復按鈕文字
+			        event.target.innerText = originalText;
+			    }).catch(err => {
+			        alert("截圖失敗: " + err);
+			        event.target.innerText = originalText;
+			    });
         }
     </script>
 </body>
