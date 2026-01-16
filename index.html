@@ -236,11 +236,12 @@
                 items: items
             };
 
-            // 使用 fetch 送出 POST
+// 使用 fetch 送出 POST
             fetch(GAS_URL, {
                 method: 'POST',
-                mode: 'no-cors', // 重要：避免 CORS 錯誤，但無法讀取回傳值
-                headers: { 'Content-Type': 'application/json' },
+                mode: 'no-cors', 
+                // 【關鍵修正】改用 text/plain，確保 GAS 能正確讀取 e.postData.contents
+                headers: { 'Content-Type': 'text/plain' }, 
                 body: JSON.stringify(data)
             }).then(() => {
                 alert('✅ 資料已送出！');
