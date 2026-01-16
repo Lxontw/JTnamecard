@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>外發廠商登記單 (最終完美版)</title>
+    <title>外發廠商登記單 (累加版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Microsoft JhengHei', sans-serif; background-color: #f3f4f6; }
@@ -39,7 +39,7 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 border-b pb-4">
             <div>
-                <label class="block text-sm font-bold">廠商選擇</label>
+                <label class="block text-sm font-bold">廠商選擇 <span class="text-red-500">*</span></label>
                 <select id="vendor" class="w-full border p-2 rounded text-gray-700">
                     <option value="" disabled selected>請選擇廠商...</option>
                     <option value="健豪">健豪</option>
@@ -71,11 +71,11 @@
 
         <div class="mb-6 p-4 bg-green-50 rounded border border-green-200">
             <h3 class="font-bold text-green-800 mb-2">📸 AI 辨識 (gemini-flash-latest)</h3>
-            <p class="text-xs text-gray-500 mb-2">將自動判斷：客戶名稱、印件名稱、以及名單明細</p>
+            <p class="text-xs text-gray-500 mb-2">拍攝多張照片時，資料會自動往下新增 (不會覆蓋舊資料)</p>
             <input type="file" id="fileInput" accept="image/*" capture="camera" class="block w-full text-sm text-gray-500 mb-2">
             <button onclick="processImage()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2">
                 <div id="ocrLoader" class="loader"></div>
-                開始辨識
+                開始辨識 (累加資料)
             </button>
         </div>
 
@@ -89,7 +89,7 @@
                         <th class="border p-2 w-16">盒數</th>
                         <th class="border p-2 w-32">紙張</th>
                         <th class="border p-2 w-20">單/雙</th>
-                        <th class="border p-2 w-24">尺寸</th>
+                        <th class="border p-2 w-24">尺寸 <span class="text-red-500">*</span></th>
                         <th class="border p-2">加工</th>
                         <th class="border p-2 w-10">刪</th>
                     </tr>
@@ -138,10 +138,13 @@
     </div>
 
     <script>
-        // ================= 設定區 (已自動帶入) =================
+        // ================= 設定區 (請在此填入您的資料) =================
+        
+        // 🔴 請填入您的 API Key (不要再公開貼給別人看囉！)
         const GEMINI_API_KEY = 'AIzaSyD82kn7yC2Xy_NaL2ShaG5V2W6B2voXhPQ'; 
+        
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbyrG2SM82toUvrxkbkEF37H_hqK-50UK8tups5wRmbsmeplS5O7c98GR7R5dObzPLrjbg/exec'; 
-        // ====================================================
+        // ==========================================================
 
         const DEFAULT_OPTIONS = {
             sales: ["詹子建"],
@@ -213,7 +216,7 @@
             const tbody = document.getElementById('tableBody');
             const row = document.createElement('tr');
             const defaultPaper = "一級卡";
-            const defaultSize = "";
+            const defaultSize = ""; // 尺寸預設為空，等待使用者填寫
             const defaultProcess = "";
 
             row.innerHTML = `
@@ -227,7 +230,9 @@
                         <option ${data.side === '單面' ? 'selected' : ''}>單面</option>
                     </select>
                 </td>
-                <td class="border p-1"><input type="text" value="${data.size || defaultSize}" list="sizeList" class="w-full p-1 border-0 focus:ring-2 text-center bg-transparent" placeholder="選或填"></td>
+                <td class="border p-1 bg-yellow-50">
+                    <input type="text" value="${data.size || defaultSize}" list="sizeList" class="size-input w-full p-1 border-0 focus:ring-2 text-center bg-transparent" placeholder="必填">
+                </td>
                 <td class="border p-1"><input type="text" value="${data.process || defaultProcess}" list="processList" class="w-full p-1 border-0 focus:ring-2 bg-transparent" placeholder="選或填"></td>
                 <td class="border p-1 text-center"><button onclick="this.closest('tr').remove()" class="text-red-500 font-bold hover:text-red-700">x</button></td>
             `;
@@ -269,7 +274,6 @@
             const MODEL_NAME = "gemini-flash-latest"; 
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${GEMINI_API_KEY}`;
             
-            // 升級版 Prompt
             const prompt = `
                 Analyze this image of business cards or a name list.
                 Identify the Company/Client Name.
@@ -320,17 +324,21 @@
                 const result = JSON.parse(text);
                 
                 // 1. 自動填入 客戶名稱 與 印件名稱
-                if (result.clientName) {
+                // 修改邏輯：只有當欄位是「空」的時候才填入，避免拍照覆蓋掉已經填好的資料
+                const currentClient = document.getElementById('clientName').value;
+                const currentPrint = document.getElementById('printName').value;
+
+                if (result.clientName && !currentClient) {
                     document.getElementById('clientName').value = result.clientName;
                 }
-                if (result.printName) {
+                if (result.printName && !currentPrint) {
                     document.getElementById('printName').value = result.printName;
                 }
 
-                // 2. 自動填入 人員名單
+                // 2. 自動填入 人員名單 (修改邏輯：累加 Append，不清空)
                 const items = result.items || [];
-                document.getElementById('tableBody').innerHTML = '';
                 
+                // 檢查如果表格第一列是空的（初始狀態），可以考慮移除它，但為了安全起見，我們直接往後加
                 if (items.length > 0) {
                     items.forEach(item => addRow({ 
                         title: item.title, 
@@ -338,9 +346,9 @@
                         paper: '一級卡', 
                         size: ''
                     }));
+                    alert(`✅ 成功辨識並新增了 ${items.length} 筆資料！`);
                 } else {
-                    addRow(); // 如果沒抓到人名，至少加一列空的
-                    alert("AI 偵測到了公司資訊，但沒有抓到具體人名，請確認圖片。");
+                    alert("AI 偵測到了圖片，但沒有抓到具體人名，請確認圖片。");
                 }
 
             } catch (error) {
@@ -348,11 +356,13 @@
                 alert("程式執行錯誤: " + error.message);
             } finally {
                 document.getElementById('ocrLoader').style.display = 'none';
+                // 清空檔案輸入框，這樣可以重複選擇同一張照片（如果需要的話）
+                document.getElementById('fileInput').value = '';
             }
         }
 
         function submitOrder() {
-            // 檢查是否已選擇廠商
+            // 1. 檢查廠商
             const vendor = document.getElementById('vendor').value;
             if (!vendor) {
                 alert("請選擇「廠商」！");
@@ -360,10 +370,30 @@
                 return;
             }
 
+            // 2. 檢查每一列的「尺寸」是否必填
+            const rows = document.querySelectorAll('#tableBody tr');
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                // 抓取該列的 input，第五個 td (index 4) 是尺寸... 
+                // 更精準的方法是抓 class="size-input"
+                const sizeInput = row.querySelector('.size-input');
+                
+                if (sizeInput && !sizeInput.value.trim()) {
+                    alert(`⚠️ 第 ${i + 1} 列的「尺寸」尚未填寫！`);
+                    sizeInput.focus(); // 直接將游標移到該格子
+                    sizeInput.style.backgroundColor = "#fee2e2"; // 變紅提醒一下
+                    // 恢復顏色的監聽器
+                    sizeInput.addEventListener('input', function() {
+                        this.style.backgroundColor = "transparent";
+                    }, {once:true});
+                    return; // 中斷送出
+                }
+            }
+
+            // 若都通過，開始送出
             const loader = document.getElementById('submitLoader');
             loader.style.display = 'block';
 
-            const rows = document.querySelectorAll('#tableBody tr');
             const items = Array.from(rows).map(row => {
                 const inputs = row.querySelectorAll('input, select');
                 return {
@@ -395,6 +425,7 @@
             }).then(() => {
                 alert('✅ 資料已送出！');
                 loader.style.display = 'none';
+                // 可以在這裡選擇是否要重整頁面，或保留資料
             }).catch(err => {
                 alert('❌ 發送失敗: ' + err);
                 loader.style.display = 'none';
