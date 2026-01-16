@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>外發廠商登記單 (自訂選單版)</title>
+    <title>外發廠商登記單 (AI 全自動版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Microsoft JhengHei', sans-serif; background-color: #f3f4f6; }
@@ -59,17 +59,18 @@
                 <input type="text" id="sales" value="詹子建" list="salesList" class="w-full border p-2 rounded" placeholder="請選擇或輸入">
             </div>
             <div>
-                <label class="block text-sm font-bold">客戶名稱</label>
-                <input type="text" id="clientName" class="w-full border p-2 rounded">
+                <label class="block text-sm font-bold text-blue-800">客戶名稱 (AI 自動填寫)</label>
+                <input type="text" id="clientName" class="w-full border p-2 rounded bg-blue-50" placeholder="等待 AI 辨識...">
             </div>
             <div>
-                <label class="block text-sm font-bold">印件名稱</label>
-                <input type="text" id="printName" placeholder="將作為分頁名稱" class="w-full border p-2 rounded">
+                <label class="block text-sm font-bold text-blue-800">印件名稱 (AI 自動填寫)</label>
+                <input type="text" id="printName" placeholder="等待 AI 辨識..." class="w-full border p-2 rounded bg-blue-50">
             </div>
         </div>
 
         <div class="mb-6 p-4 bg-green-50 rounded border border-green-200">
             <h3 class="font-bold text-green-800 mb-2">📸 AI 辨識 (gemini-flash-latest)</h3>
+            <p class="text-xs text-gray-500 mb-2">將自動判斷：客戶名稱、印件名稱、以及名單明細</p>
             <input type="file" id="fileInput" accept="image/*" capture="camera" class="block w-full text-sm text-gray-500 mb-2">
             <button onclick="processImage()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2">
                 <div id="ocrLoader" class="loader"></div>
@@ -110,7 +111,6 @@
         <div class="modal-content">
             <h3 class="text-xl font-bold mb-4">⚙️ 設定常用詞彙</h3>
             <p class="text-sm text-gray-500 mb-4">請用「逗號」分隔每個選項</p>
-
             <div class="space-y-4">
                 <div>
                     <label class="block font-bold text-sm">負責業務清單</label>
@@ -129,7 +129,6 @@
                     <textarea id="editProcess" class="w-full border p-2 rounded h-20 text-sm"></textarea>
                 </div>
             </div>
-
             <div class="mt-6 flex justify-end gap-2">
                 <button onclick="closeSettings()" class="px-4 py-2 border rounded hover:bg-gray-100">取消</button>
                 <button onclick="saveSettings()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">儲存設定</button>
@@ -143,7 +142,6 @@
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbyrG2SM82toUvrxkbkEF37H_hqK-50UK8tups5wRmbsmeplS5O7c98GR7R5dObzPLrjbg/exec'; 
         // ====================================================
 
-        // 預設的選項清單 (如果使用者還沒自訂過，就用這些)
         const DEFAULT_OPTIONS = {
             sales: ["詹子建"],
             paper: ["一級卡", "萊妮紙", "象牙卡", "雙霧卡", "局部光", "瑞典一級卡", "頂級卡", "合成卡", "安格紙"],
@@ -151,17 +149,14 @@
             process: ["雙面霧P", "局部上光"]
         };
 
-        // 目前的選項狀態
         let currentOptions = {};
 
-        // 初始化
         window.onload = function() {
             document.getElementById('date').valueAsDate = new Date();
-            loadSettings(); // 載入選單設定
-            addRow();       // 新增第一列
+            loadSettings();
+            addRow();
         };
 
-        // --- 設定功能：載入與儲存 ---
         function loadSettings() {
             const saved = localStorage.getItem('vendorFormOptions');
             if (saved) {
@@ -173,7 +168,6 @@
         }
 
         function renderDatalists() {
-            // 填充 datalist HTML
             fillDatalist('salesList', currentOptions.sales);
             fillDatalist('paperList', currentOptions.paper);
             fillDatalist('sizeList', currentOptions.size);
@@ -190,7 +184,6 @@
             });
         }
 
-        // 開啟設定視窗
         function openSettings() {
             document.getElementById('editSales').value = currentOptions.sales.join(',');
             document.getElementById('editPaper').value = currentOptions.paper.join(',');
@@ -199,12 +192,10 @@
             document.getElementById('settingsModal').style.display = 'flex';
         }
 
-        // 關閉設定視窗
         function closeSettings() {
             document.getElementById('settingsModal').style.display = 'none';
         }
 
-        // 儲存使用者自訂設定
         function saveSettings() {
             currentOptions.sales = document.getElementById('editSales').value.split(',').map(s=>s.trim()).filter(s=>s);
             currentOptions.paper = document.getElementById('editPaper').value.split(',').map(s=>s.trim()).filter(s=>s);
@@ -217,16 +208,10 @@
             alert('設定已儲存！');
         }
 
-
-        // --- 表格功能 ---
         function addRow(data = {}) {
             const tbody = document.getElementById('tableBody');
             const row = document.createElement('tr');
-            
-            // 這裡設定預設值
-            // 紙張預設：一級卡
             const defaultPaper = "一級卡";
-            // 尺寸、加工預設：空白
             const defaultSize = "";
             const defaultProcess = "";
 
@@ -234,39 +219,25 @@
                 <td class="border p-1"><input type="text" value="${data.title || ''}" class="w-full p-1 border-0 focus:ring-2 bg-transparent" placeholder="頭銜"></td>
                 <td class="border p-1"><input type="text" value="${data.name || ''}" class="w-full p-1 border-0 focus:ring-2 bg-transparent" placeholder="人名"></td>
                 <td class="border p-1"><input type="number" value="${data.boxes || '1'}" class="w-full p-1 border-0 focus:ring-2 text-center bg-transparent"></td>
-                
-                <td class="border p-1">
-                    <input type="text" value="${data.paper || defaultPaper}" list="paperList" class="w-full p-1 border-0 focus:ring-2 bg-transparent" placeholder="選或填">
-                </td>
-                
+                <td class="border p-1"><input type="text" value="${data.paper || defaultPaper}" list="paperList" class="w-full p-1 border-0 focus:ring-2 bg-transparent" placeholder="選或填"></td>
                 <td class="border p-1">
                     <select class="w-full p-1 border-0 bg-transparent">
                         <option ${data.side === '雙面' ? 'selected' : ''}>雙面</option>
                         <option ${data.side === '單面' ? 'selected' : ''}>單面</option>
                     </select>
                 </td>
-                
-                <td class="border p-1">
-                    <input type="text" value="${data.size || defaultSize}" list="sizeList" class="w-full p-1 border-0 focus:ring-2 text-center bg-transparent" placeholder="選或填">
-                </td>
-                
-                <td class="border p-1">
-                    <input type="text" value="${data.process || defaultProcess}" list="processList" class="w-full p-1 border-0 focus:ring-2 bg-transparent" placeholder="選或填">
-                </td>
-                
+                <td class="border p-1"><input type="text" value="${data.size || defaultSize}" list="sizeList" class="w-full p-1 border-0 focus:ring-2 text-center bg-transparent" placeholder="選或填"></td>
+                <td class="border p-1"><input type="text" value="${data.process || defaultProcess}" list="processList" class="w-full p-1 border-0 focus:ring-2 bg-transparent" placeholder="選或填"></td>
                 <td class="border p-1 text-center"><button onclick="this.closest('tr').remove()" class="text-red-500 font-bold hover:text-red-700">x</button></td>
             `;
             tbody.appendChild(row);
         }
 
-        // --- Gemini AI OCR ---
         async function processImage() {
             const fileInput = document.getElementById('fileInput');
             if (fileInput.files.length === 0) return alert("請先拍攝或選擇照片");
-
             const file = fileInput.files[0];
             const reader = new FileReader();
-            
             document.getElementById('ocrLoader').style.display = 'block';
 
             reader.onload = function(event) {
@@ -276,20 +247,16 @@
                     const MAX_WIDTH = 1024;
                     let width = img.width;
                     let height = img.height;
-
                     if (width > MAX_WIDTH) {
                         height *= MAX_WIDTH / width;
                         width = MAX_WIDTH;
                     }
-
                     canvas.width = width;
                     canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
-
                     const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
                     const base64Image = dataUrl.split(',')[1];
-                    
                     callGemini(base64Image);
                 };
                 img.src = event.target.result;
@@ -301,12 +268,20 @@
             const MODEL_NAME = "gemini-flash-latest"; 
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${GEMINI_API_KEY}`;
             
+            // 升級版 Prompt：要求回傳完整的 JSON 物件
             const prompt = `
-                Analyze this image of a name list or business cards.
-                Extract specific data into a JSON Array.
-                Fields: "title" (Job Title), "name" (Person Name).
-                Return ONLY raw JSON. No markdown code blocks.
-                Example: [{"title": "Manager", "name": "John"}, {"title": "", "name": "Amy"}]
+                Analyze this image of business cards or a name list.
+                Identify the Company/Client Name.
+                Suggest a Print Job Name (e.g. "Company Name Business Cards").
+                Extract people with Title and Name.
+                
+                Return a single JSON object with these keys:
+                {
+                    "clientName": "...",
+                    "printName": "...",
+                    "items": [{"title": "...", "name": "..."}, ...]
+                }
+                Return ONLY raw JSON. No markdown.
             `;
 
             const payload = {
@@ -341,16 +316,31 @@
                 let text = data.candidates[0].content.parts[0].text;
                 text = text.replace(/```json/g, '').replace(/```/g, '').trim();
                 
-                const items = JSON.parse(text);
+                const result = JSON.parse(text);
                 
-                // OCR 成功後，清空表格並填入新資料
+                // 1. 自動填入 客戶名稱 與 印件名稱
+                if (result.clientName) {
+                    document.getElementById('clientName').value = result.clientName;
+                }
+                if (result.printName) {
+                    document.getElementById('printName').value = result.printName;
+                }
+
+                // 2. 自動填入 人員名單
+                const items = result.items || [];
                 document.getElementById('tableBody').innerHTML = '';
-                items.forEach(item => addRow({ 
-                    title: item.title, 
-                    name: item.name,
-                    paper: '一級卡', // 保持預設值
-                    size: '' // OCR 不知道尺寸，留白讓使用者選
-                }));
+                
+                if (items.length > 0) {
+                    items.forEach(item => addRow({ 
+                        title: item.title, 
+                        name: item.name,
+                        paper: '一級卡', 
+                        size: ''
+                    }));
+                } else {
+                    addRow(); // 如果沒抓到人名，至少加一列空的
+                    alert("AI 偵測到了公司資訊，但沒有抓到具體人名，請確認圖片。");
+                }
 
             } catch (error) {
                 console.error(error);
@@ -360,7 +350,6 @@
             }
         }
 
-        // --- 送出資料至 GAS ---
         function submitOrder() {
             const loader = document.getElementById('submitLoader');
             loader.style.display = 'block';
